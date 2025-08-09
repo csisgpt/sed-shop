@@ -5,7 +5,8 @@ const config: Config = {
   testEnvironment: 'node',
   extensionsToTreatAsEsm: ['.ts'],
   moduleNameMapper: {
-    '^(\.\.?/.*)\.js$': '$1',
+    // eslint-disable-next-line no-useless-escape
+    '^(\\.{1,2}/.*)\\.js$': '$1',
   },
   testMatch: ['<rootDir>/test/**/*.e2e-spec.ts'],
 };
