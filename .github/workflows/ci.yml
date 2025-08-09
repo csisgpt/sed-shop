@@ -28,8 +28,8 @@ jobs:
       - name: Install
         run: pnpm install --no-frozen-lockfile
 
-      - name: Lint
-        run: pnpm lint
+      - name: Lint (root)
+        run: pnpm run lint:root
 
-      - name: Typecheck
-        run: pnpm typecheck
+      - name: Typecheck (root)
+        run: pnpm run typecheck:root
