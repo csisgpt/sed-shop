@@ -6,11 +6,15 @@
     "strict": true,
     "skipLibCheck": true,
     "resolveJsonModule": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
     "baseUrl": ".",
     "paths": {
       "@shared/*": ["packages/*"],
       "@backend/*": ["apps/backend/src/*"],
       "@frontend/*": ["apps/frontend/*"]
     }
-  }
+  },
+  "files": ["types/global.d.ts"],
+  "exclude": ["node_modules", "dist", "build", ".turbo"]
 }
