@@ -1,0 +1,43 @@
+{
+  "name": "sed-shop",
+  "private": true,
+  "version": "0.1.0",
+  "packageManager": "pnpm@9.0.0",
+  "scripts": {
+    "dev": "turbo run dev --parallel",
+    "build": "turbo run build",
+    "typecheck": "turbo run typecheck",
+    "lint": "turbo run lint",
+    "test": "turbo run test",
+    "format": "prettier -w .",
+    "prepare": "husky" ,
+    "lint:root": "eslint . --ext .js,.cjs,.mjs,.ts,.tsx,.vue --no-error-on-unmatched-pattern --max-warnings=0 --fix",
+    "typecheck:root": "tsc -p tsconfig.base.json --noEmit",
+    "db:migrate": "echo \"(will run prisma migrate from apps/backend later)\"",
+    "db:seed": "echo \"(will run prisma seed later)\""
+  },
+  "lint-staged": {
+    "*.{ts,tsx,js,vue,json,md,yml,yaml}": [
+      "prettier -w",
+      "eslint --fix --max-warnings=0"
+    ]
+  },
+  "devDependencies": {
+    "@commitlint/cli": "^19.3.0",
+    "@commitlint/config-conventional": "^19.2.2",
+    "@typescript-eslint/eslint-plugin": "^7.18.0",
+    "@typescript-eslint/parser": "^7.18.0",
+    "eslint": "^8.57.0",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-prettier": "^5.2.1",
+    "husky": "^9.1.5",
+    "lint-staged": "^15.2.7",
+    "prettier": "^3.3.3",
+    "turbo": "^2.0.4",
+    "typescript": "^5.5.4"
+  },
+  "engines": {
+    "node": ">=20",
+    "pnpm": ">=9"
+  }
+}
