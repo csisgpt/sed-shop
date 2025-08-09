@@ -11,7 +11,7 @@
     "test": "turbo run test",
     "format": "prettier -w .",
     "prepare": "husky" ,
-    "lint:root": "eslint . --ext .js,.cjs,.mjs,.ts,.tsx,.vue --no-error-on-unmatched-pattern --max-warnings=0",
+    "lint:root": "eslint . --ext .js,.cjs,.mjs,.ts,.tsx,.vue --no-error-on-unmatched-pattern --max-warnings=0 --fix",
     "typecheck:root": "tsc -p tsconfig.base.json --noEmit",
     "db:migrate": "echo \"(will run prisma migrate from apps/backend later)\"",
     "db:seed": "echo \"(will run prisma seed later)\""
