@@ -1,0 +1,294 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  CUSTOMER
+  STAFF
+  ADMIN
+}
+
+enum OrderStatus {
+  PENDING
+  PAID
+  FULFILLED
+  CANCELLED
+  REFUNDED
+}
+
+enum PaymentStatus {
+  PENDING
+  AUTHORIZED
+  CAPTURED
+  FAILED
+  REFUNDED
+}
+
+enum ShipmentStatus {
+  PENDING
+  PACKED
+  SHIPPED
+  DELIVERED
+  RETURNED
+}
+
+model User {
+  id           String     @id @default(uuid())
+  email        String     @unique
+  passwordHash String
+  fullName     String?
+  role         UserRole   @default(CUSTOMER)
+
+  addresses    Address[]
+  carts        Cart[]
+  orders       Order[]
+
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  deleted_at   DateTime?
+
+  @@index([role])
+}
+
+model Address {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fullName    String
+  phone       String
+  line1       String
+  line2       String?
+  city        String
+  state       String?
+  postalCode  String?
+  country     String    @default("IR")
+  isDefault   Boolean   @default(false)
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deleted_at  DateTime?
+
+  @@index([userId])
+}
+
+model Category {
+  id          String     @id @default(uuid())
+  name        String
+  slug        String     @unique
+  description String?
+  parentId    String?
+  parent      Category?  @relation("CategoryToCategory", fields: [parentId], references: [id])
+  children    Category[] @relation("CategoryToCategory")
+  products    Product[]
+
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  deleted_at  DateTime?
+
+  @@index([slug])
+}
+
+model Product {
+  id           String           @id @default(uuid())
+  title        String
+  slug         String           @unique
+  description  String?
+  categoryId   String?
+  category     Category?        @relation(fields: [categoryId], references: [id])
+  published    Boolean          @default(true)
+
+  variants     ProductVariant[]
+  images       Image[]
+
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+  deleted_at   DateTime?
+
+  @@index([categoryId])
+  @@index([title])
+}
+
+model ProductVariant {
+  id              String   @id @default(uuid())
+  productId       String
+  product         Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  sku             String   @unique
+  title           String?
+  price           Decimal  @db.Decimal(12,0) // IRR (Rial)
+  compareAtPrice  Decimal? @db.Decimal(12,0) // IRR (Rial)
+  stock           Int      @default(0)
+  attributes      Json?
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  deleted_at      DateTime?
+
+  @@index([productId])
+}
+
+model Image {
+  id        String   @id @default(uuid())
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  url       String
+  alt       String?
+  position  Int      @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  deleted_at DateTime?
+
+  @@index([productId])
+}
+
+model Coupon {
+  id             String   @id @default(uuid())
+  code           String   @unique
+  // isPercent: true ⇒ value is 0..100 (percent as integer)
+  // isPercent: false ⇒ value is a fixed amount in IRR (Rial)
+  isPercent      Boolean  @default(true)
+  value          Decimal  @db.Decimal(12,0)
+  minOrderAmount Decimal? @db.Decimal(12,0) // IRR (Rial)
+  startsAt       DateTime?
+  endsAt         DateTime?
+  usageLimit     Int?
+  usedCount      Int      @default(0)
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  deleted_at     DateTime?
+}
+
+model Cart {
+  id          String      @id @default(uuid())
+  userId      String?
+  user        User?       @relation(fields: [userId], references: [id])
+  sessionId   String?     @unique // for guest carts
+  status      String      @default("ACTIVE") // ACTIVE | ORDERED | ABANDONED
+
+  items       CartItem[]
+
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  deleted_at  DateTime?
+}
+
+model CartItem {
+  id              String   @id @default(uuid())
+  cartId          String
+  cart            Cart     @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  productId       String
+  product         Product  @relation(fields: [productId], references: [id])
+  variantId       String
+  variant         ProductVariant @relation(fields: [variantId], references: [id])
+  quantity        Int      @default(1)
+  price_snapshot  Decimal  @db.Decimal(12,0) // IRR (Rial)
+  currency        String   @default("IRR")
+  productTitle_snapshot String
+  variantTitle_snapshot String?
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  deleted_at      DateTime?
+
+  @@index([cartId])
+  @@index([productId])
+  @@index([variantId])
+}
+
+model Order {
+  id           String        @id @default(uuid())
+  userId       String?
+  user         User?         @relation(fields: [userId], references: [id])
+  status       OrderStatus   @default(PENDING)
+  couponId     String?
+  coupon       Coupon?       @relation(fields: [couponId], references: [id])
+
+  // address snapshot
+  shipping_fullName   String?
+  shipping_phone      String?
+  shipping_line1      String?
+  shipping_line2      String?
+  shipping_city       String?
+  shipping_state      String?
+  shipping_postalCode String?
+  shipping_country    String? @default("IR")
+
+  totalAmount   Decimal       @db.Decimal(12,0) // IRR (Rial)
+  currency      String        @default("IRR")
+
+  items         OrderItem[]
+  payments      Payment[]
+  shipments     Shipment[]
+
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  deleted_at    DateTime?
+
+  @@index([userId])
+  @@index([status])
+}
+
+model OrderItem {
+  id              String   @id @default(uuid())
+  orderId         String
+  order           Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId       String
+  product         Product  @relation(fields: [productId], references: [id])
+  variantId       String
+  variant         ProductVariant @relation(fields: [variantId], references: [id])
+  quantity        Int      @default(1)
+  price_snapshot  Decimal  @db.Decimal(12,0) // IRR (Rial)
+  currency        String   @default("IRR")
+  productTitle_snapshot String
+  variantTitle_snapshot String?
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  deleted_at      DateTime?
+
+  @@index([orderId])
+}
+
+model Payment {
+  id              String        @id @default(uuid())
+  orderId         String
+  order           Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  provider        String        @default("mock")
+  amount          Decimal       @db.Decimal(12,0) // IRR (Rial)
+  currency        String        @default("IRR")
+  status          PaymentStatus @default(PENDING)
+  transactionId   String?
+  idempotencyKey  String?
+
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  deleted_at      DateTime?
+
+  @@index([orderId])
+  @@index([status])
+}
+
+model Shipment {
+  id              String         @id @default(uuid())
+  orderId         String
+  order           Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  carrier         String         @default("mock")
+  trackingNumber  String?
+  status          ShipmentStatus @default(PENDING)
+  cost            Decimal?       @db.Decimal(12,0) // IRR (Rial)
+  shippedAt       DateTime?
+  deliveredAt     DateTime?
+
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  deleted_at      DateTime?
+
+  @@index([orderId])
+  @@index([status])
+}
