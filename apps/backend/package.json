@@ -8,7 +8,7 @@
     "build": "nest build",
     "start:prod": "node dist/main.js",
     "lint": "eslint src --ext .ts --max-warnings=0",
-    "typecheck": "tsc -p tsconfig.build.json --noEmit",
+    "typecheck": "tsc -p tsconfig.build.json --noEmit && tsc -p tsconfig.prisma.json --noEmit",
     "test": "jest",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate deploy",
