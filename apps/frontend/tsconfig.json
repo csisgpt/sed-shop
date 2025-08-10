@@ -1,0 +1,42 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "jsx": "preserve",
+    "strict": true,
+    "skipLibCheck": true,
+    "allowJs": true,
+    "types": ["node", "vue", "nuxt", "nuxt/schema"],
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./*"],
+      "~/*": ["./*"]
+    }
+  },
+  "vueCompilerOptions": {
+    "skipTemplateCodegen": true
+  },
+  "references": [{ "path": "./.nuxt/tsconfig.json" }],
+  "include": [
+    "*.ts",
+    "*.vue",
+    "app.vue",
+    "app.config.ts",
+    "components/**/*.vue",
+    "layouts/**/*.vue",
+    "pages/**/*.vue",
+    "plugins/**/*.ts",
+    "composables/**/*.ts",
+    "stores/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    ".nuxt/typings/components.d.ts",
+    "tailwind.config.*",
+    "vitest.config.*",
+    "postcss.config.*"
+  ]
+}
