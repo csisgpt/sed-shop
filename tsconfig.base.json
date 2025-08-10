@@ -10,11 +10,27 @@
     "forceConsistentCasingInFileNames": true,
     "baseUrl": ".",
     "paths": {
-      "@shared/*": ["packages/*"],
-      "@backend/*": ["apps/backend/src/*"],
-      "@frontend/*": ["apps/frontend/*"]
+      "@shared/*": [
+        "packages/*"
+      ],
+      "@backend/*": [
+        "apps/backend/src/*"
+      ],
+      "@frontend/*": [
+        "apps/frontend/*"
+      ],
+      "@sed-shop/shared-schemas": [
+        "packages/shared-schemas/src"
+      ]
     }
   },
-  "files": ["types/global.d.ts"],
-  "exclude": ["node_modules", "dist", "build", ".turbo"]
+  "files": [
+    "types/global.d.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "build",
+    ".turbo"
+  ]
 }

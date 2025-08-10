@@ -10,7 +10,7 @@
     "lint": "turbo run lint",
     "test": "turbo run test",
     "format": "prettier -w .",
-    "prepare": "husky" ,
+    "prepare": "husky",
     "lint:root": "eslint . --ext .js,.cjs,.mjs,.ts,.tsx,.vue --no-error-on-unmatched-pattern --max-warnings=0 --fix",
     "typecheck:root": "tsc -p tsconfig.base.json --noEmit",
     "db:migrate": "echo \"(will run prisma migrate from apps/backend later)\"",
@@ -39,5 +39,9 @@
   "engines": {
     "node": ">=20",
     "pnpm": ">=9"
+  },
+  "overrides": {
+    "vite": "^5.4.0",
+    "@vitejs/plugin-vue": "^5.0.0"
   }
 }

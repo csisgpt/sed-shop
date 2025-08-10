@@ -1,0 +1,31 @@
+{
+  "name": "@sed-shop/frontend",
+  "private": true,
+  "type": "module",
+  "version": "0.0.0",
+  "scripts": {
+    "dev": "nuxt dev",
+    "build": "nuxt build",
+    "start": "nuxt start",
+    "lint": "eslint . --ext .js,.cjs,.mjs,.ts,.tsx,.vue --no-error-on-unmatched-pattern --max-warnings=0",
+    "typecheck": "nuxt prepare && vue-tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "nuxt": "^3.12.0",
+    "@pinia/nuxt": "^0.5.1",
+    "pinia": "^2.1.7",
+    "@nuxtjs/tailwindcss": "^6.12.1",
+    "@sed-shop/shared-schemas": "workspace:*",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "typescript": "~5.4.5",
+    "vue-tsc": "^2.0.21",
+    "eslint": "^8.57.0",
+    "@typescript-eslint/eslint-plugin": "^7.13.1",
+    "@typescript-eslint/parser": "^7.13.1",
+    "eslint-plugin-vue": "^9.26.0",
+    "vite": "^5.4.0",
+    "@vitejs/plugin-vue": "^5.0.4"
+  }
+}
