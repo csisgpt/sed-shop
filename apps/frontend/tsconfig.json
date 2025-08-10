@@ -1,0 +1,38 @@
+{
+  "extends": "./.nuxt/tsconfig.json",
+  "compilerOptions": {
+    "strict": true,
+    "skipLibCheck": true,
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./*"],
+      "~/*": ["./*"]
+    },
+    "noEmit": true,
+    "composite": false,
+    "declaration": false
+  },
+  "include": [
+    "app.vue",
+    "app.config.ts",
+    "**/*.ts",
+    "**/*.vue",
+    "components/**/*.vue",
+    "layouts/**/*.vue",
+    "pages/**/*.vue",
+    "plugins/**/*.ts",
+    "composables/**/*.ts",
+    "stores/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    ".nuxt",
+    "coverage",
+    "vitest.config.*",
+    "postcss.config.*",
+    "tailwind.config.*"
+  ]
+}
