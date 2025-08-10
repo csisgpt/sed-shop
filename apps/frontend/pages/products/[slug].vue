@@ -14,7 +14,7 @@ const { data: product } = await useFetch<Product>(`${config.public.apiBase}/prod
       :src="product.images[0].url"
       :alt="product.title"
       class="w-full max-w-md object-cover"
-    />
+    >
     <p>{{ product.description }}</p>
     <p class="font-bold" v-if="product.variants[0]">
       {{ useCurrency(product.variants[0].price) }}
