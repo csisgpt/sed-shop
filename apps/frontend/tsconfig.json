@@ -1,0 +1,38 @@
+{
+  "extends": "nuxt/tsconfig",
+  "compilerOptions": {
+    "strict": true,
+    "skipLibCheck": true,
+    "moduleResolution": "Bundler",
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./*"],
+      "~/*": ["./*"]
+    },
+    // Explicitly disable anything that would require emitting
+    "composite": false,
+    "declaration": false
+  },
+  "include": [
+    "app.vue",
+    "**/*.ts",
+    "**/*.vue",
+    "components/**/*.vue",
+    "layouts/**/*.vue",
+    "pages/**/*.vue",
+    "plugins/**/*.ts",
+    "composables/**/*.ts",
+    "stores/**/*.ts",
+    "app.config.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    ".nuxt",
+    "coverage",
+    "playwright-report",
+    "tailwind.config.*",
+    "vitest.config.*",
+    "postcss.config.*"
+  ]
+}
