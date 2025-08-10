@@ -1,0 +1,34 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "jsx": "preserve",
+    "strict": true,
+    "skipLibCheck": true,
+    "allowJs": true,
+    "types": ["node", "nuxt/schema", "vitest"],
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./*"],
+      "~/*": ["./*"]
+    }
+  },
+  "vueCompilerOptions": {
+    "skipTemplateCodegen": true
+  },
+  "include": [
+    "*.ts",
+    "*.vue",
+    "components/**/*.vue",
+    "layouts/**/*.vue",
+    "pages/**/*.vue",
+    "plugins/**/*.ts",
+    "composables/**/*.ts",
+    "stores/**/*.ts",
+    "app.vue",
+    "app.config.ts"
+  ],
+  "exclude": ["node_modules", "dist", ".nuxt"]
+}
