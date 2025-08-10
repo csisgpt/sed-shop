@@ -1,0 +1,22 @@
+{
+  "name": "@sed-shop/frontend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "nuxt dev",
+    "build": "nuxt build",
+    "lint": "eslint . --ext .ts,.vue --max-warnings=0",
+    "typecheck": "nuxt prepare && vue-tsc --noEmit"
+  },
+  "dependencies": {
+    "nuxt": "^3.12.3",
+    "pinia": "^2.1.7",
+    "@pinia/nuxt": "^0.5.1",
+    "@nuxtjs/tailwindcss": "^6.10.1",
+    "@sed-shop/shared-schemas": "workspace:*"
+  },
+  "devDependencies": {
+    "vue-tsc": "^2.0.27"
+  }
+}
