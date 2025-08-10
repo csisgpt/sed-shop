@@ -41,3 +41,12 @@ jobs:
       - name: Typecheck (backend)
         if: ${{ hashFiles('apps/backend/package.json') != '' }}
         run: pnpm -w -F @sed-shop/backend typecheck
+
+      - name: Lint (frontend)
+        if: ${{ hashFiles('apps/frontend/package.json') != '' }}
+        run: pnpm -w -F @sed-shop/frontend lint
+
+      - name: Typecheck (frontend)
+        if: ${{ hashFiles('apps/frontend/package.json') != '' }}
+        run: pnpm -w -F @sed-shop/frontend typecheck
+
