@@ -1,9 +1,23 @@
+
+
+/** Nuxt ESLint overrides (frontend only) */
 module.exports = {
-  extends: ['../../.eslintrc.cjs', 'plugin:vue/vue3-recommended'],
-  parser: 'vue-eslint-parser',
-  parserOptions: {
-    parser: '@typescript-eslint/parser',
-    extraFileExtensions: ['.vue']
+  // ⛔️ این خط را حذف کردیم: env: { 'vue/setup-compiler-macros': true },
+  globals: {
+    // Nuxt auto-imports
+    useRoute: 'readonly',
+    useRuntimeConfig: 'readonly',
+    useFetch: 'readonly',
+    // اگر بعداً دربارهٔ این‌ها هم خطا دیدی، اضافه‌شون کن:
+    // defineProps: 'readonly',
+    // defineEmits: 'readonly',
+    // defineExpose: 'readonly',
+    // withDefaults: 'readonly',
   },
-  ignorePatterns: ['node_modules', '.nuxt', 'dist']
+  overrides: [
+    {
+      files: ['pages/**/*.vue', 'layouts/**/*.vue', 'app.vue'],
+      rules: { 'vue/multi-word-component-names': 'off' },
+    },
+  ],
 };
