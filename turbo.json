@@ -3,19 +3,23 @@
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
-      "outputs": ["dist/**", "build/**"]
+      "outputs": ["dist/**", "build/**", "openapi.json"]
     },
     "dev": {
       "cache": false,
       "persistent": true
     },
-    "lint": {},
-    "typecheck": {},
+    "lint": { "dependsOn": ["^lint"] },
+    "typecheck": { "dependsOn": ["^typecheck"] },
     "test": {
       "dependsOn": ["^build"],
       "outputs": ["coverage/**"]
     },
     "format": {
+      "cache": false
+    },
+    "gen:openapi": {
+      "dependsOn": ["build"],
       "cache": false
     }
   }
