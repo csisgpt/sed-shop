@@ -13,7 +13,10 @@
     "nuxt": "^3.12.0",
     "pinia": "^2.1.7",
     "@pinia/nuxt": "^0.5.1",
-    "@nuxtjs/tailwindcss": "^6.10.5"
+    "@nuxtjs/tailwindcss": "^6.10.5",
+    "@sed-shop/api-client": "workspace:*",
+    "@sed-shop/shared-schemas": "workspace:*",
+    "@sed-shop/shared-types": "workspace:*"
   },
   "devDependencies": {
     "vue-tsc": "^2.0.28",

@@ -15,6 +15,10 @@ async function bootstrap() {
 
   app.setGlobalPrefix('api');
   app.enableVersioning({ type: VersioningType.URI, defaultVersion: '1' });
+  app.enableCors({
+    origin: 'http://localhost:3001',
+    credentials: true,
+  });
 
   const config = new DocumentBuilder().setTitle('sed-shop API').setVersion('1.0').build();
   const document = SwaggerModule.createDocument(app, config);
