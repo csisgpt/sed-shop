@@ -3,7 +3,7 @@ import { AppModule } from './app.module.js';
 import { Logger } from 'nestjs-pino';
 import helmet from 'helmet';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
-import { VersioningType } from '@nestjs/common';
+import { ValidationPipe, VersioningType } from '@nestjs/common';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, { bufferLogs: true });
@@ -19,6 +19,15 @@ async function bootstrap() {
     origin: 'http://localhost:3001',
     credentials: true,
   });
+
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      transform: true,
+      transformOptions: { enableImplicitConversion: true },
+    }),
+  );
 
   const config = new DocumentBuilder().setTitle('sed-shop API').setVersion('1.0').build();
   const document = SwaggerModule.createDocument(app, config);

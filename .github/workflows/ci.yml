@@ -1,31 +1,54 @@
-name: CI (light)
-
+name: ci
 on:
   push:
     branches: [ main ]
   pull_request:
-
+    branches: [ main ]
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
-  ci:
+  build-and-check:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:14
+        ports: ['5432:5432']
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: sedshop_ci
+        options: >-
+          --health-cmd="pg_isready -U postgres" --health-interval=10s
+          --health-timeout=5s --health-retries=5
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/sedshop_ci?schema=public
+      API_BASE_URL: http://localhost:3000
+      WEB_BASE_URL: http://localhost:3001
+      NODE_ENV: test
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with: { version: 9 }
+      - uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: 'pnpm'
-
-      - name: Enable PNPM via Corepack
-        run: |
-          corepack enable
-          corepack prepare pnpm@9 --activate
-          pnpm -v
-
       - name: Install
-        run: pnpm install --no-frozen-lockfile
-
-      - name: Ship-it note
-        run: echo "Light mode: skipping lint/typecheck/tests for now."
+        run: pnpm install --frozen-lockfile=false
+      - name: Prisma migrate
+        run: pnpm --filter @sed-shop/backend prisma migrate deploy
+      - name: Build (apps & packages)
+        run: pnpm build
+      - name: Generate OpenAPI & API client
+        run: |
+          pnpm openapi:gen
+          pnpm --filter @sed-shop/api-client gen
+          pnpm --filter @sed-shop/api-client build
+      - name: Typecheck
+        run: pnpm typecheck
+      - name: Lint
+        run: pnpm lint
+      # Optional tests (enable when ready):
+      # - name: Test
+      #   run: pnpm -w test
