@@ -54,7 +54,7 @@ const query = {
   limit: route.query.limit ? Number(route.query.limit) : undefined,
 }
 const { data } = await useAsyncData('products', () =>
-  api.GET('/api/v1/products', { params: { query } }).then((r) => r.data)
+  api.GET('/v1/products', { params: { query } }).then((r) => r.data)
 )
 const page = computed(() => Number(route.query.page ?? 1))
 const limit = computed(() => Number(route.query.limit ?? 20))

@@ -27,7 +27,7 @@ const route = useRoute()
 const api = useApiClient()
 const { data: product } = await useAsyncData('product', () =>
   api
-    .GET('/api/v1/products/{slug}', {
+    .GET('/v1/products/{slug}', {
       params: { path: { slug: route.params.slug as string } },
     })
     .then((r) => r.data)

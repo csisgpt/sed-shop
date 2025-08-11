@@ -23,6 +23,208 @@
           }
         }
       }
+    },
+    "/api/v1/products": {
+      "get": {
+        "summary": "List products",
+        "tags": ["products"],
+        "parameters": [
+          { "name": "q", "in": "query", "schema": { "type": "string" }, "required": false },
+          { "name": "category", "in": "query", "schema": { "type": "string" }, "required": false },
+          { "name": "minPrice", "in": "query", "schema": { "type": "integer" }, "required": false },
+          { "name": "maxPrice", "in": "query", "schema": { "type": "integer" }, "required": false },
+          { "name": "sort", "in": "query", "schema": { "type": "string" }, "required": false },
+          { "name": "page", "in": "query", "schema": { "type": "integer" }, "required": false },
+          { "name": "limit", "in": "query", "schema": { "type": "integer" }, "required": false }
+        ],
+        "responses": {
+          "200": {
+            "description": "Product list",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ProductListResponse" }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Create product",
+        "tags": ["products"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/ProductPublic" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ProductPublic" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/products/{slug}": {
+      "get": {
+        "summary": "Get product by slug",
+        "tags": ["products"],
+        "parameters": [
+          { "name": "slug", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Product detail",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ProductPublic" }
+              }
+            }
+          },
+          "404": { "description": "Not found" }
+        }
+      }
+    },
+    "/api/v1/products/{id}": {
+      "patch": {
+        "summary": "Update product",
+        "tags": ["products"],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/ProductPublic" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ProductPublic" }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete product",
+        "tags": ["products"],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }
+        ],
+        "responses": {
+          "200": { "description": "Deleted" }
+        }
+      }
+    },
+    "/api/v1/categories": {
+      "get": {
+        "summary": "List categories",
+        "tags": ["categories"],
+        "responses": {
+          "200": {
+            "description": "Category list",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/CategoryPublic" }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Create category",
+        "tags": ["categories"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/CategoryPublic" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/CategoryPublic" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/categories/{slug}": {
+      "get": {
+        "summary": "Get category by slug",
+        "tags": ["categories"],
+        "parameters": [
+          { "name": "slug", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Category detail",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/CategoryPublic" }
+              }
+            }
+          },
+          "404": { "description": "Not found" }
+        }
+      }
+    },
+    "/api/v1/categories/{id}": {
+      "patch": {
+        "summary": "Update category",
+        "tags": ["categories"],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/CategoryPublic" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/CategoryPublic" }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete category",
+        "tags": ["categories"],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }
+        ],
+        "responses": {
+          "200": { "description": "Deleted" }
+        }
+      }
     }
   },
   "components": {
@@ -35,7 +237,75 @@
           "locale": { "type": "string", "example": "fa-IR" },
           "version": { "type": "string", "example": "v1" }
         }
+      },
+      "CategoryPublic": {
+        "type": "object",
+        "required": ["id", "name", "slug"],
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "name": { "type": "string" },
+          "slug": { "type": "string" },
+          "parentId": { "type": "string", "format": "uuid", "nullable": true }
+        }
+      },
+      "ProductImagePublic": {
+        "type": "object",
+        "required": ["url"],
+        "properties": {
+          "url": { "type": "string" },
+          "alt": { "type": "string", "nullable": true },
+          "position": { "type": "integer", "nullable": true }
+        }
+      },
+      "ProductVariantPublic": {
+        "type": "object",
+        "required": ["id", "price", "stock"],
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "sku": { "type": "string", "nullable": true },
+          "price": { "type": "integer" },
+          "compareAtPrice": { "type": "integer", "nullable": true },
+          "stock": { "type": "integer" }
+        }
+      },
+      "ProductPublic": {
+        "type": "object",
+        "required": ["id", "title", "slug"],
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "title": { "type": "string" },
+          "slug": { "type": "string" },
+          "description": { "type": "string", "nullable": true },
+          "published": { "type": "boolean" },
+          "category": { "$ref": "#/components/schemas/CategoryPublic", "nullable": true },
+          "images": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/ProductImagePublic" },
+            "nullable": true
+          },
+          "variants": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/ProductVariantPublic" },
+            "nullable": true
+          },
+          "minPrice": { "type": "integer", "nullable": true },
+          "maxPrice": { "type": "integer", "nullable": true }
+        }
+      },
+      "ProductListResponse": {
+        "type": "object",
+        "required": ["items", "total", "page", "limit"],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/ProductPublic" }
+          },
+          "total": { "type": "integer" },
+          "page": { "type": "integer" },
+          "limit": { "type": "integer" }
+        }
       }
     }
   }
 }
+
