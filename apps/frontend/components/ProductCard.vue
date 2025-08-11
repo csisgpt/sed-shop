@@ -6,12 +6,12 @@
   </div>
 </template>
 <script setup lang="ts">
-import type { Product } from '@sed-shop/shared-schemas'
+import type { ProductPublicT } from '@sed-shop/shared-schemas'
 import { useCurrency } from '~/composables/useCurrency'
 
-const { product } = defineProps<{ product: Product }>()
+const { product } = defineProps<{ product: ProductPublicT }>()
 
-const formatPrice = (price?: number | string) =>
-  price != null ? useCurrency(Number(price)) : ''
+const formatPrice = (price?: number) =>
+  price != null ? useCurrency(price) : ''
 </script>
 

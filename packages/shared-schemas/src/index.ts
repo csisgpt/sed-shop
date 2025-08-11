@@ -46,3 +46,39 @@ export type Product = z.infer<typeof ProductSchema>;
 export type ProductVariant = z.infer<typeof ProductVariantSchema>;
 export type ProductImage = z.infer<typeof ProductImageSchema>;
 
+// T4: public schemas for products & categories
+export const MoneyInt = z.number().int().min(0);
+
+export const ProductImagePublic = z.object({
+  url: z.string().url(),
+  alt: z.string().nullish(),
+  position: z.number().int().min(0).optional(),
+});
+export const ProductVariantPublic = z.object({
+  id: z.string().uuid(),
+  sku: z.string().nullish(),
+  price: MoneyInt,
+  compareAtPrice: z.number().int().min(0).nullish(),
+  stock: z.number().int(),
+});
+export const CategoryPublic = z.object({
+  id: z.string().uuid(),
+  name: z.string(),
+  slug: z.string(),
+  parentId: z.string().uuid().nullish(),
+});
+export const ProductPublic = z.object({
+  id: z.string().uuid(),
+  title: z.string(),
+  slug: z.string(),
+  description: z.string().nullish(),
+  published: z.boolean(),
+  category: CategoryPublic.nullish(),
+  images: z.array(ProductImagePublic).optional(),
+  variants: z.array(ProductVariantPublic).optional(),
+  minPrice: MoneyInt.optional(),
+  maxPrice: MoneyInt.optional(),
+});
+export type ProductPublicT = z.infer<typeof ProductPublic>;
+export type CategoryPublicT = z.infer<typeof CategoryPublic>;
+
