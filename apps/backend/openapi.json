@@ -1,0 +1,41 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "sed-shop API",
+    "version": "1"
+  },
+  "servers": [
+    { "url": "http://localhost:3000" }
+  ],
+  "paths": {
+    "/api/v1/ping": {
+      "get": {
+        "summary": "Ping test endpoint",
+        "tags": ["system"],
+        "responses": {
+          "200": {
+            "description": "Successful ping",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/PingResponseDto" }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "PingResponseDto": {
+        "type": "object",
+        "required": ["status", "locale", "version"],
+        "properties": {
+          "status": { "type": "string", "example": "ok" },
+          "locale": { "type": "string", "example": "fa-IR" },
+          "version": { "type": "string", "example": "v1" }
+        }
+      }
+    }
+  }
+}
