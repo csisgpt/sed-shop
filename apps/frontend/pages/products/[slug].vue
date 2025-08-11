@@ -1,24 +1,36 @@
 <template>
   <article class="prose max-w-none">
     <h1>{{ product?.title }}</h1>
-    <img v-if="product?.images?.[0]" :src="product.images[0].url" :alt="product.title" class="w-full h-64 object-cover">
-    <p v-if="product?.variants?.[0]">{{ formatPrice(product.variants[0].price) }}</p>
+    <div class="flex gap-2">
+      <img
+        v-for="img in product?.images || []"
+        :key="img.url"
+        :src="img.url"
+        :alt="img.alt || product?.title"
+        class="w-40 h-40 object-cover"
+      />
+    </div>
+    <p v-if="product?.description">{{ product.description }}</p>
+    <ul>
+      <li v-for="v in product?.variants || []" :key="v.id">
+        {{ v.sku }} - {{ formatPrice(v.price) }} ({{ v.stock }})
+      </li>
+    </ul>
   </article>
 </template>
 <script setup lang="ts">
-import { useRoute, useRuntimeConfig, useFetch } from '#imports'
-import type { Product } from '@sed-shop/shared-schemas'
+import { useRoute } from '#imports'
+import { useApiClient } from '~/composables/useApiClient'
 import { useCurrency } from '~/composables/useCurrency'
 
 const route = useRoute()
-const {
-  public: { apiBase }
-} = useRuntimeConfig()
-
-const { data: product } = await useFetch<Product>(
-  `${apiBase}/v1/products/${route.params.slug}`
+const api = useApiClient()
+const { data: product } = await useAsyncData('product', () =>
+  api
+    .GET('/api/v1/products/{slug}', {
+      params: { path: { slug: route.params.slug as string } },
+    })
+    .then((r) => r.data)
 )
-
-const formatPrice = (p?: number | string) =>
-  p != null ? useCurrency(Number(p)) : ''
+const formatPrice = (p?: number) => (p != null ? useCurrency(p) : '')
 </script>

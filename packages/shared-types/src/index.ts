@@ -1,3 +1,5 @@
+import type { ProductPublicT, CategoryPublicT } from '@sed-shop/shared-schemas';
+
 export type UUID = string;
 export type CurrencyCode = 'IRR';
 export const DEFAULT_CURRENCY: CurrencyCode = 'IRR';
@@ -31,4 +33,22 @@ export interface ApiError {
   message: string;
   details?: unknown;
 }
+
+// T4 product/category types
+
+export type ProductSortField = 'createdAt' | 'title';
+
+export interface ProductListQuery {
+  q?: string;
+  category?: string; // slug
+  minPrice?: number;
+  maxPrice?: number;
+  sort?: SortParam[];
+  page?: number;
+  limit?: number;
+  published?: boolean;
+}
+
+export type ProductListResponse = PaginatedResponse<ProductPublicT>;
+export type { ProductPublicT, CategoryPublicT } from '@sed-shop/shared-schemas';
 
