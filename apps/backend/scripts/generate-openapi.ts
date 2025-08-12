@@ -1,28 +1,25 @@
-/// apps/backend/scripts/generate-openapi.ts
 import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { ExpressAdapter } from '@nestjs/platform-express';
 import express from 'express';
 import { writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 async function run() {
-  // 1) Import AppModule dynamically so import-time errors are catchable
+  // Dynamic import so any import-time error is caught below
   const { AppModule } = await import('../src/app.module.js');
 
-  // 2) Use Express adapter (safer across envs)
   const server = express();
   const app = await NestFactory.create(AppModule, new ExpressAdapter(server), {
     logger: false,
   });
 
-  // mirror main.ts prefix so routes match /api/*
+  // Mirror main.ts prefix so paths match /api/*
   app.setGlobalPrefix('api');
 
-  // NOTE: Do NOT call app.init() to avoid triggering DB connections via Prisma onModuleInit.
-  // OpenAPI generation only needs decorators metadata which is available without init.
-
+  // NOTE: We do NOT call app.init() to avoid DB connections (Prisma onModuleInit).
   const cfg = new DocumentBuilder()
     .setTitle('sed-shop API')
     .setDescription('OpenAPI for sed-shop')
@@ -32,7 +29,10 @@ async function run() {
     .build();
 
   const doc = SwaggerModule.createDocument(app, cfg);
-  const out = join(process.cwd(), 'apps', 'backend', 'openapi.json');
+
+  // Write relative to this file (cwd-agnostic)
+  const here = dirname(fileURLToPath(import.meta.url));  // .../apps/backend/scripts
+  const out = join(here, '..', 'openapi.json');          // .../apps/backend/openapi.json
   writeFileSync(out, JSON.stringify(doc, null, 2), 'utf-8');
 
   await app.close();
@@ -40,7 +40,6 @@ async function run() {
 }
 
 run().catch((err) => {
-  // Print maximum detail so CI shows the root cause if anything fails
   console.error('[openapi:gen] Failed:\n', err?.stack || err);
   try {
     console.error('[openapi:gen] Error object:', JSON.stringify(err, Object.getOwnPropertyNames(err), 2));
