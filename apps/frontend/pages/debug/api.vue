@@ -13,7 +13,7 @@ onMounted(async () => {
 <template>
   <div class="p-6 space-y-4">
     <h1 class="text-2xl font-bold">API Client Debug</h1>
-    <p class="text-gray-600">GET /api/v1/ping</p>
+    <p class="text-gray-600">GET /v1/ping</p>
     <div v-if="error" class="text-red-600">Error: {{ error }}</div>
     <pre v-else class="bg-gray-100 p-4 rounded">{{ result }}</pre>
   </div>
