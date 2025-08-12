@@ -1,4 +1,4 @@
-// --- apps/backend/scripts/generate-openapi.ts ---
+/// apps/backend/scripts/generate-openapi.ts
 import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
@@ -6,22 +6,24 @@ import { ExpressAdapter } from '@nestjs/platform-express';
 import express from 'express';
 import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-// ESM local import requires .js suffix
-import { AppModule } from '../src/app.module.js';
 
 async function run() {
+  // 1) Import AppModule dynamically so import-time errors are catchable
+  const { AppModule } = await import('../src/app.module.js');
+
+  // 2) Use Express adapter (safer across envs)
   const server = express();
   const app = await NestFactory.create(AppModule, new ExpressAdapter(server), {
     logger: false,
   });
 
-  // mirror main.ts prefix so paths are correct
+  // mirror main.ts prefix so routes match /api/*
   app.setGlobalPrefix('api');
 
-  // initialize providers/modules so decorator metadata is ready
-  await app.init();
+  // NOTE: Do NOT call app.init() to avoid triggering DB connections via Prisma onModuleInit.
+  // OpenAPI generation only needs decorators metadata which is available without init.
 
-  const config = new DocumentBuilder()
+  const cfg = new DocumentBuilder()
     .setTitle('sed-shop API')
     .setDescription('OpenAPI for sed-shop')
     .setVersion('1')
@@ -29,7 +31,7 @@ async function run() {
     .addServer('http://localhost:3000')
     .build();
 
-  const doc = SwaggerModule.createDocument(app, config);
+  const doc = SwaggerModule.createDocument(app, cfg);
   const out = join(process.cwd(), 'apps', 'backend', 'openapi.json');
   writeFileSync(out, JSON.stringify(doc, null, 2), 'utf-8');
 
@@ -38,10 +40,10 @@ async function run() {
 }
 
 run().catch((err) => {
+  // Print maximum detail so CI shows the root cause if anything fails
   console.error('[openapi:gen] Failed:\n', err?.stack || err);
   try {
     console.error('[openapi:gen] Error object:', JSON.stringify(err, Object.getOwnPropertyNames(err), 2));
   } catch {}
   process.exit(1);
 });
-// --- end file ---
