@@ -4,8 +4,8 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 async function run() {
-  // Dynamically import EVERY non-Node module so any resolve error is catchable & logged
-  const [{ NestFactory }, { SwaggerModule, DocumentBuilder }, plat, expressMod] =
+  // Dynamically import ALL non-Node modules so any resolution error is caught & logged
+  const [{ NestFactory }, { SwaggerModule, DocumentBuilder }, platform, expressMod] =
     await Promise.all([
       import('@nestjs/core'),
       import('@nestjs/swagger'),
@@ -13,22 +13,22 @@ async function run() {
       import('express'),
     ]);
 
-  // Normalize default export for express (CJS/ESM interop)
+  // CJS/ESM interop for express
   const express = (expressMod as any).default ?? (expressMod as any);
+  const { ExpressAdapter } = platform as any;
 
   // Import AppModule dynamically too (catchable)
   const { AppModule } = await import('../src/app.module.js');
 
   const server = express();
-  const { ExpressAdapter } = plat as any;
   const app = await NestFactory.create(AppModule, new ExpressAdapter(server), {
     logger: false,
   });
 
-  // Mirror main.ts prefix so routes match /api/*
+  // Mirror main.ts so routes match /api/*
   app.setGlobalPrefix('api');
 
-  // Do NOT call app.init() to avoid DB connects via Prisma onModuleInit; decorators are enough.
+  // Do NOT call app.init(); avoid DB connects via Prisma onModuleInit—decorators are enough.
 
   const cfg = new DocumentBuilder()
     .setTitle('sed-shop API')
@@ -51,8 +51,6 @@ async function run() {
 
 run().catch((err) => {
   console.error('[openapi:gen] Failed:\n', err?.stack || err);
-  try {
-    console.error('[openapi:gen] Error object:', JSON.stringify(err, Object.getOwnPropertyNames(err), 2));
-  } catch {}
+  try { console.error('[openapi:gen] Error object:', JSON.stringify(err, Object.getOwnPropertyNames(err), 2)); } catch {}
   process.exit(1);
 });
