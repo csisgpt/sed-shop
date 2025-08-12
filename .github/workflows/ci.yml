@@ -4,6 +4,7 @@ on:
     branches: [ main ]
   pull_request:
     branches: [ main ]
+
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
@@ -36,13 +37,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # Use PNPM version from root package.json: "packageManager".
+      # Use PNPM version from root package.json "packageManager" (single source of truth)
       - name: Setup PNPM
         uses: pnpm/action-setup@v4
         with:
           run_install: false
 
-      # Conditional cache: only when pnpm-lock.yaml exists.
+      # Enable PNPM cache only when pnpm-lock.yaml exists; otherwise skip cache to avoid hard error
       - name: Setup Node (with PNPM cache)
         if: ${{ hashFiles('pnpm-lock.yaml') != '' }}
         uses: actions/setup-node@v4
@@ -60,11 +61,10 @@ jobs:
       - name: Install
         run: pnpm install --frozen-lockfile=false
 
-      # IMPORTANT: run Prisma migrate via script or exec (not a non-existent "prisma" script).
       - name: Prisma migrate
         run: pnpm --filter @sed-shop/backend prisma:migrate || pnpm --filter @sed-shop/backend exec prisma migrate deploy
 
-      # IMPORTANT: Generate OpenAPI & API client BEFORE building packages (api-client needs schema.d.ts).
+      # IMPORTANT: generate spec and client BEFORE building the monorepo
       - name: Generate OpenAPI & API client
         run: |
           pnpm openapi:gen

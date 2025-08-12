@@ -9,10 +9,7 @@ export interface ApiClientOptions {
 }
 
 /**
- * Type-safe client based on OpenAPI (openapi-fetch).
- * - Uses a strictly-typed fetch wrapper (no implicit any)
- * - Sends Authorization: Bearer <token> when available
- * - Always includes credentials:'include'
+ * OpenAPI-based client with a strictly-typed fetch wrapper.
  */
 export function createApiClient(opts: ApiClientOptions) {
   const client = createClient<paths>({
@@ -26,7 +23,7 @@ export function createApiClient(opts: ApiClientOptions) {
       return fetch(input as RequestInfo, {
         ...(init ?? {}),
         headers,
-        credentials: 'include',
+        credentials: 'include'
       });
     },
   });
