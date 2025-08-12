@@ -14,7 +14,7 @@ export interface ApiClientOptions {
 export function createApiClient(opts: ApiClientOptions) {
   const client = createClient<paths>({
     baseUrl: opts.baseUrl,
-    fetch: async (...args: Parameters<typeof fetch>) => {
+    fetch: async (...args: Parameters<typeof fetch>): Promise<Response> => {
       const [input, init] = args;
       const headers = new Headers(init?.headers as HeadersInit | undefined);
       const token = await opts.getAccessToken?.();
