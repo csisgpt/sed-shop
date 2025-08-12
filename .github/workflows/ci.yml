@@ -1,55 +1,83 @@
 name: ci
+
 on:
   push:
     branches: [ main ]
   pull_request:
     branches: [ main ]
+
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
+
 jobs:
   build-and-check:
     runs-on: ubuntu-latest
+
     services:
       postgres:
         image: postgres:14
-        ports: ['5432:5432']
+        ports: [ "5432:5432" ]
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
           POSTGRES_DB: sedshop_ci
         options: >-
-          --health-cmd="pg_isready -U postgres" --health-interval=10s
-          --health-timeout=5s --health-retries=5
+          --health-cmd="pg_isready -U postgres"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
     env:
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/sedshop_ci?schema=public
       API_BASE_URL: http://localhost:3000
       WEB_BASE_URL: http://localhost:3001
       NODE_ENV: test
+
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Use the pnpm version declared in root package.json "packageManager".
+      # Do NOT set a version here to avoid conflicts.
+      - name: Setup PNPM
+        uses: pnpm/action-setup@v4
         with:
           run_install: false
-      - uses: actions/setup-node@v4
+
+      # If a lockfile exists, enable PNPM cache. Otherwise, skip cache to avoid error:
+      # "Dependencies lock file is not found ... Supported file patterns: pnpm-lock.yaml"
+      - name: Setup Node (with PNPM cache)
+        if: ${{ hashFiles('pnpm-lock.yaml') != '' }}
+        uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: 'pnpm'
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Setup Node (no cache - lockfile missing)
+        if: ${{ hashFiles('pnpm-lock.yaml') == '' }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
       - name: Install
         run: pnpm install --frozen-lockfile=false
+
       - name: Prisma migrate
         run: pnpm --filter @sed-shop/backend prisma migrate deploy
+
       - name: Build (apps & packages)
         run: pnpm build
+
       - name: Generate OpenAPI & API client
         run: |
           pnpm openapi:gen
           pnpm --filter @sed-shop/api-client gen
           pnpm --filter @sed-shop/api-client build
+
       - name: Typecheck
         run: pnpm typecheck
+
       - name: Lint
         run: pnpm lint
-      # Optional tests (enable when ready):
-      # - name: Test
-      #   run: pnpm -w test
