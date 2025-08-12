@@ -13,12 +13,11 @@ async function run() {
       import('express'),
     ]);
 
-  // CJS/ESM interop for express
-  const express = (expressMod as any).default ?? (expressMod as any);
-  const { ExpressAdapter } = platform as any;
+  const express = expressMod.default ?? expressMod;         // CJS/ESM interop
+  const { ExpressAdapter } = platform;
 
-  // Import AppModule dynamically too (catchable)
-  const { AppModule } = await import('../src/app.module.js');
+  // Import compiled AppModule from dist (requires building backend first)
+  const { AppModule } = await import('../dist/src/app.module.js');
 
   const server = express();
   const app = await NestFactory.create(AppModule, new ExpressAdapter(server), {
@@ -28,7 +27,7 @@ async function run() {
   // Mirror main.ts so routes match /api/*
   app.setGlobalPrefix('api');
 
-  // Do NOT call app.init(); avoid DB connects via Prisma onModuleInit—decorators are enough.
+  // Do NOT call app.init(); avoid DB connects via Prisma onModuleInit — decorators are enough.
 
   const cfg = new DocumentBuilder()
     .setTitle('sed-shop API')
