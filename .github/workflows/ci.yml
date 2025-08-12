@@ -1,31 +1,82 @@
-name: CI (light)
-
+name: ci
 on:
   push:
     branches: [ main ]
   pull_request:
+    branches: [ main ]
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  ci:
+  build-and-check:
     runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:14
+        ports: [ "5432:5432" ]
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: sedshop_ci
+        options: >-
+          --health-cmd="pg_isready -U postgres"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/sedshop_ci?schema=public
+      API_BASE_URL: http://localhost:3000
+      WEB_BASE_URL: http://localhost:3001
+      NODE_ENV: test
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node
+      # Use PNPM version from root package.json: "packageManager".
+      - name: Setup PNPM
+        uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+
+      # Conditional cache: only when pnpm-lock.yaml exists.
+      - name: Setup Node (with PNPM cache)
+        if: ${{ hashFiles('pnpm-lock.yaml') != '' }}
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: 'pnpm'
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
 
-      - name: Enable PNPM via Corepack
-        run: |
-          corepack enable
-          corepack prepare pnpm@9 --activate
-          pnpm -v
+      - name: Setup Node (no cache - lockfile missing)
+        if: ${{ hashFiles('pnpm-lock.yaml') == '' }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
 
       - name: Install
-        run: pnpm install --no-frozen-lockfile
+        run: pnpm install --frozen-lockfile=false
 
-      - name: Ship-it note
-        run: echo "Light mode: skipping lint/typecheck/tests for now."
+      # IMPORTANT: run Prisma migrate via script or exec (not a non-existent "prisma" script).
+      - name: Prisma migrate
+        run: pnpm --filter @sed-shop/backend prisma:migrate || pnpm --filter @sed-shop/backend exec prisma migrate deploy
+
+      # IMPORTANT: Generate OpenAPI & API client BEFORE building packages (api-client needs schema.d.ts).
+      - name: Generate OpenAPI & API client
+        run: |
+          pnpm openapi:gen
+          pnpm --filter @sed-shop/api-client gen
+          pnpm --filter @sed-shop/api-client build
+
+      - name: Build (apps & packages)
+        run: pnpm build
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Lint
+        run: pnpm lint
+# End of file
