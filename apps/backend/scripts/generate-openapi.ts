@@ -8,7 +8,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 async function run() {
-  // Dynamic import so any import-time error is caught below
+  // dynamic import so any import-time error is caught and logged
   const { AppModule } = await import('../src/app.module.js');
 
   const server = express();
@@ -16,10 +16,11 @@ async function run() {
     logger: false,
   });
 
-  // Mirror main.ts prefix so paths match /api/*
+  // mirror main.ts prefix so routes match /api/*
   app.setGlobalPrefix('api');
 
-  // NOTE: We do NOT call app.init() to avoid DB connections (Prisma onModuleInit).
+  // Do NOT call app.init() to avoid DB connects in onModuleInit; decorators metadata is enough.
+
   const cfg = new DocumentBuilder()
     .setTitle('sed-shop API')
     .setDescription('OpenAPI for sed-shop')
@@ -30,9 +31,9 @@ async function run() {
 
   const doc = SwaggerModule.createDocument(app, cfg);
 
-  // Write relative to this file (cwd-agnostic)
-  const here = dirname(fileURLToPath(import.meta.url));  // .../apps/backend/scripts
-  const out = join(here, '..', 'openapi.json');          // .../apps/backend/openapi.json
+  // write relative to this file (cwd-agnostic)
+  const here = dirname(fileURLToPath(import.meta.url));        // .../apps/backend/scripts
+  const out = join(here, '..', 'openapi.json');                // .../apps/backend/openapi.json
   writeFileSync(out, JSON.stringify(doc, null, 2), 'utf-8');
 
   await app.close();
