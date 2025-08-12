@@ -1,11 +1,9 @@
 name: ci
-
 on:
   push:
     branches: [ main ]
   pull_request:
     branches: [ main ]
-
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
@@ -38,15 +36,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # Use the pnpm version declared in root package.json "packageManager".
-      # Do NOT set a version here to avoid conflicts.
+      # Use PNPM version from root package.json: "packageManager".
       - name: Setup PNPM
         uses: pnpm/action-setup@v4
         with:
           run_install: false
 
-      # If a lockfile exists, enable PNPM cache. Otherwise, skip cache to avoid error:
-      # "Dependencies lock file is not found ... Supported file patterns: pnpm-lock.yaml"
+      # Conditional cache: only when pnpm-lock.yaml exists.
       - name: Setup Node (with PNPM cache)
         if: ${{ hashFiles('pnpm-lock.yaml') != '' }}
         uses: actions/setup-node@v4
@@ -64,20 +60,23 @@ jobs:
       - name: Install
         run: pnpm install --frozen-lockfile=false
 
+      # IMPORTANT: run Prisma migrate via script or exec (not a non-existent "prisma" script).
       - name: Prisma migrate
-        run: pnpm --filter @sed-shop/backend prisma migrate deploy
+        run: pnpm --filter @sed-shop/backend prisma:migrate || pnpm --filter @sed-shop/backend exec prisma migrate deploy
 
-      - name: Build (apps & packages)
-        run: pnpm build
-
+      # IMPORTANT: Generate OpenAPI & API client BEFORE building packages (api-client needs schema.d.ts).
       - name: Generate OpenAPI & API client
         run: |
           pnpm openapi:gen
           pnpm --filter @sed-shop/api-client gen
           pnpm --filter @sed-shop/api-client build
 
+      - name: Build (apps & packages)
+        run: pnpm build
+
       - name: Typecheck
         run: pnpm typecheck
 
       - name: Lint
         run: pnpm lint
+# End of file
