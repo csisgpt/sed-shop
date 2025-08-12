@@ -32,21 +32,27 @@ export class ProductsService {
     return slug;
   }
 
-  private parseSort(sort?: string): Prisma.ProductOrderByWithRelationInput[] {
+  private parseSort(sort?: string) {
+    const orderBy: any[] = [];
     if (!sort) return [{ createdAt: 'desc' }];
-    const parts = sort.split(',');
-    const orderBy: Prisma.ProductOrderByWithRelationInput[] = [];
-    for (const p of parts) {
-      const [field, dir] = p.split(':');
-      if (!['createdAt', 'title'].includes(field)) {
+    for (const part of sort
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean)) {
+      const [field, dirRaw] = part.split(':');
+      const dir = dirRaw === 'desc' ? 'desc' : 'asc';
+      if (field === 'createdAt' || field === 'title') {
+        orderBy.push({ [field]: dir });
+      } else if (field === 'price') {
+        orderBy.push({ __price__: dir });
+      } else {
         throw new HttpException(
           { code: 'INVALID_SORT', message: `Cannot sort by ${field}` },
           HttpStatus.BAD_REQUEST,
         );
       }
-      orderBy.push({ [field]: dir === 'desc' ? 'desc' : 'asc' } as any);
     }
-    return orderBy;
+    return orderBy.length ? orderBy : [{ createdAt: 'desc' }];
   }
 
   async list(query: ProductListQueryDto) {
@@ -75,30 +81,71 @@ export class ProductsService {
         },
       };
     }
-    const orderBy = this.parseSort(query.sort);
-    const [items, total] = await this.prisma.$transaction([
-      this.prisma.product.findMany({
-        where,
-        orderBy,
-        skip: (page - 1) * limit,
-        take: limit,
-        include: {
-          category: true,
-          images: { where: { deletedAt: null }, orderBy: { position: 'asc' } },
-          variants: { where: { deletedAt: null } },
-        },
-      }),
-      this.prisma.product.count({ where }),
-    ]);
+    const orderByRaw = this.parseSort(query.sort);
+    const hasPrice = orderByRaw.some((o) => '__price__' in o);
+    const prismaOrderBy = orderByRaw.flatMap((o) =>
+      '__price__' in o
+        ? [
+            { variants: { _count: 'desc' } },
+            { variants: { _min: { price: o['__price__'] } } },
+          ]
+        : [o],
+    );
 
-    const mapped = items.map((p) => {
-      const prices = p.variants.map((v) => v.price);
-      const minPrice = prices.length ? Math.min(...prices) : undefined;
-      const maxPrice = prices.length ? Math.max(...prices) : undefined;
-      return { ...p, minPrice, maxPrice };
-    });
+    const include = {
+      category: true,
+      images: { where: { deletedAt: null }, orderBy: { position: 'asc' } },
+      variants: { where: { deletedAt: null } },
+    } as const;
 
-    return { items: mapped, total, page, limit };
+    try {
+      const [items, total] = await this.prisma.$transaction([
+        this.prisma.product.findMany({
+          where,
+          orderBy: prismaOrderBy,
+          skip: (page - 1) * limit,
+          take: limit,
+          include,
+        }),
+        this.prisma.product.count({ where }),
+      ]);
+
+      const mapped = items.map((p) => {
+        const prices = p.variants.map((v) => v.price);
+        const minPrice = prices.length ? Math.min(...prices) : undefined;
+        const maxPrice = prices.length ? Math.max(...prices) : undefined;
+        return { ...p, minPrice, maxPrice };
+      });
+
+      return { items: mapped, total, page, limit };
+    } catch (err) {
+      if (!hasPrice) throw err;
+
+      const prismaOrderByNoPrice = orderByRaw.filter((o) => !('__price__' in o));
+      const [items, total] = await this.prisma.$transaction([
+        this.prisma.product.findMany({ where, orderBy: prismaOrderByNoPrice, include }),
+        this.prisma.product.count({ where }),
+      ]);
+
+      const mapped = items.map((p) => {
+        const prices = p.variants.map((v) => v.price);
+        const minPrice = prices.length ? Math.min(...prices) : undefined;
+        const maxPrice = prices.length ? Math.max(...prices) : undefined;
+        return { ...p, minPrice, maxPrice };
+      });
+
+      const dir = orderByRaw.find((o) => '__price__' in o)?.['__price__'] === 'desc' ? 'desc' : 'asc';
+      mapped.sort((a, b) => {
+        const aPrice = a.minPrice ?? (dir === 'asc' ? Infinity : -1);
+        const bPrice = b.minPrice ?? (dir === 'asc' ? Infinity : -1);
+        if (aPrice === bPrice) return 0;
+        return dir === 'asc' ? aPrice - bPrice : bPrice - aPrice;
+      });
+
+      const start = (page - 1) * limit;
+      const paged = mapped.slice(start, start + limit);
+      return { items: paged, total, page, limit };
+    }
   }
 
   async detail(slug: string) {
