@@ -64,6 +64,9 @@ jobs:
       - name: Prisma migrate
         run: pnpm --filter @sed-shop/backend prisma:migrate || pnpm --filter @sed-shop/backend exec prisma migrate deploy
 
+      - name: Prisma generate
+        run: pnpm --filter @sed-shop/backend prisma:generate
+
       - name: Build backend (for generator)
         run: pnpm --filter @sed-shop/backend build
 

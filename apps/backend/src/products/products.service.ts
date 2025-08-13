@@ -1,5 +1,5 @@
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import type { PrismaClient } from '@prisma/client';
 import { PrismaService } from '../common/prisma.service.js';
 import {
   CreateProductDto,
@@ -7,12 +7,31 @@ import {
   UpdateProductDto,
 } from './products.dto.js';
 
-// --- helper types for strict callbacks ---
-type PriceVal = number | null | undefined;
-type WithMinPrice = { minPrice?: PriceVal };
-type WithPrice = { price?: PriceVal };
+// ---- Infer types from the real Prisma delegate; no reliance on model-name exports ----
+type ProductDelegate   = PrismaClient['product'];
+type ProductFindMany   = ProductDelegate['findMany'];
+type ProductFindUnique = ProductDelegate['findUnique'];
 
-// stable comparator: nulls last
+type ProductFindManyArgs = NonNullable<Parameters<ProductFindMany>[0]>;
+type ProductWhere        = NonNullable<ProductFindManyArgs['where']>;
+type ProductOrderBy      = NonNullable<ProductFindManyArgs['orderBy']>;
+
+type ProductList   = Awaited<ReturnType<ProductFindMany>>;
+type ProductRecord = Awaited<ReturnType<ProductFindUnique>>;
+type ProductItem   = ProductList[number]; // one item shape
+
+type ListResult = {
+  items: Array<ProductItem & { minPrice?: number; maxPrice?: number }>;
+  total: number;
+  page: number;
+  limit: number;
+};
+
+// ---- helpers to remove implicit-any in callbacks ----
+type PriceVal     = number | null | undefined;
+type WithMinPrice = { minPrice?: PriceVal };
+type WithPrice    = { price?: PriceVal };
+
 const cmpNumberNullsLast = (a: PriceVal, b: PriceVal) => {
   if (a == null && b == null) return 0;
   if (a == null) return 1;
@@ -20,7 +39,7 @@ const cmpNumberNullsLast = (a: PriceVal, b: PriceVal) => {
   return (a as number) - (b as number);
 };
 
-const minPrice = (variants: WithPrice[]): number | null => {
+const minPriceFrom = (variants: WithPrice[]): number | null => {
   const values = variants
     .map((v: WithPrice) => v.price ?? null)
     .filter((v: number | null): v is number => v != null);
@@ -75,10 +94,10 @@ export class ProductsService {
     return orderBy.length ? orderBy : [{ createdAt: 'desc' }];
   }
 
-  async list(query: ProductListQueryDto) {
+  async list(query: ProductListQueryDto): Promise<ListResult> {
     const page = query.page && query.page > 0 ? query.page : 1;
     const limit = query.limit && query.limit > 0 ? Math.min(query.limit, 100) : 20;
-    const where: Prisma.ProductWhereInput = { deletedAt: null };
+    const where: ProductWhere = { deletedAt: null };
     if (query.published !== undefined) where.published = query.published;
     else where.published = true;
     if (query.q) {
@@ -130,8 +149,8 @@ export class ProductsService {
         this.prisma.product.count({ where }),
       ]);
 
-      const mapped = items.map((p: Prisma.Product & { variants: WithPrice[] }) => {
-        const minPriceVal = minPrice(p.variants);
+      const mapped = items.map((p: ProductItem & { variants: WithPrice[] }) => {
+        const minPriceVal = minPriceFrom(p.variants);
         const maxValues = p.variants
           .map((v: WithPrice) => v.price ?? null)
           .filter((v: PriceVal): v is number => v != null);
@@ -151,8 +170,8 @@ export class ProductsService {
         this.prisma.product.count({ where }),
       ]);
 
-      const mapped = items.map((p: Prisma.Product & { variants: WithPrice[] }) => {
-        const minPriceVal = minPrice(p.variants);
+      const mapped = items.map((p: ProductItem & { variants: WithPrice[] }) => {
+        const minPriceVal = minPriceFrom(p.variants);
         const maxValues = p.variants
           .map((v: WithPrice) => v.price ?? null)
           .filter((v: PriceVal): v is number => v != null);
@@ -188,7 +207,7 @@ export class ProductsService {
     });
     if (!product)
       throw new HttpException({ code: 'NOT_FOUND', message: 'Product not found' }, HttpStatus.NOT_FOUND);
-    const minPriceVal = minPrice(product.variants as WithPrice[]);
+    const minPriceVal = minPriceFrom(product.variants as WithPrice[]);
     const maxValues = product.variants
       .map((v: WithPrice) => v.price ?? null)
       .filter((v: PriceVal): v is number => v != null);
