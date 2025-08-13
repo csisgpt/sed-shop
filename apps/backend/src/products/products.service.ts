@@ -1,11 +1,50 @@
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
-import { Prisma, Product } from '@prisma/client';
+import type { PrismaClient } from '@prisma/client';
 import { PrismaService } from '../common/prisma.service.js';
 import {
   CreateProductDto,
   ProductListQueryDto,
   UpdateProductDto,
 } from './products.dto.js';
+
+// ---- Infer types from the real Prisma delegate; no reliance on model-name exports ----
+type ProductDelegate   = PrismaClient['product'];
+type ProductFindMany   = ProductDelegate['findMany'];
+type ProductFindUnique = ProductDelegate['findUnique'];
+
+type ProductFindManyArgs = NonNullable<Parameters<ProductFindMany>[0]>;
+type ProductWhere        = NonNullable<ProductFindManyArgs['where']>;
+type ProductOrderBy      = NonNullable<ProductFindManyArgs['orderBy']>;
+
+type ProductList   = Awaited<ReturnType<ProductFindMany>>;
+type ProductRecord = Awaited<ReturnType<ProductFindUnique>>;
+type ProductItem   = ProductList[number]; // one item shape
+
+type ListResult = {
+  items: Array<ProductItem & { minPrice?: number; maxPrice?: number }>;
+  total: number;
+  page: number;
+  limit: number;
+};
+
+// ---- helpers to remove implicit-any in callbacks ----
+type PriceVal     = number | null | undefined;
+type WithMinPrice = { minPrice?: PriceVal };
+type WithPrice    = { price?: PriceVal };
+
+const cmpNumberNullsLast = (a: PriceVal, b: PriceVal) => {
+  if (a == null && b == null) return 0;
+  if (a == null) return 1;
+  if (b == null) return -1;
+  return (a as number) - (b as number);
+};
+
+const minPriceFrom = (variants: WithPrice[]): number | null => {
+  const values = variants
+    .map((v: WithPrice) => v.price ?? null)
+    .filter((v: number | null): v is number => v != null);
+  return values.length ? Math.min(...values) : null;
+};
 
 function slugify(str: string): string {
   return str
@@ -32,27 +71,33 @@ export class ProductsService {
     return slug;
   }
 
-  private parseSort(sort?: string): Prisma.ProductOrderByWithRelationInput[] {
+  private parseSort(sort?: string) {
+    const orderBy: Array<Record<string, unknown>> = [];
     if (!sort) return [{ createdAt: 'desc' }];
-    const parts = sort.split(',');
-    const orderBy: Prisma.ProductOrderByWithRelationInput[] = [];
-    for (const p of parts) {
-      const [field, dir] = p.split(':');
-      if (!['createdAt', 'title'].includes(field)) {
+    for (const part of sort
+      .split(',')
+      .map((s: string) => s.trim())
+      .filter(Boolean)) {
+      const [field, dirRaw] = part.split(':');
+      const dir = dirRaw === 'desc' ? 'desc' : 'asc';
+      if (field === 'createdAt' || field === 'title') {
+        orderBy.push({ [field]: dir });
+      } else if (field === 'price') {
+        orderBy.push({ __price__: dir });
+      } else {
         throw new HttpException(
           { code: 'INVALID_SORT', message: `Cannot sort by ${field}` },
           HttpStatus.BAD_REQUEST,
         );
       }
-      orderBy.push({ [field]: dir === 'desc' ? 'desc' : 'asc' } as any);
     }
-    return orderBy;
+    return orderBy.length ? orderBy : [{ createdAt: 'desc' }];
   }
 
-  async list(query: ProductListQueryDto) {
+  async list(query: ProductListQueryDto): Promise<ListResult> {
     const page = query.page && query.page > 0 ? query.page : 1;
     const limit = query.limit && query.limit > 0 ? Math.min(query.limit, 100) : 20;
-    const where: Prisma.ProductWhereInput = { deletedAt: null };
+    const where: ProductWhere = { deletedAt: null };
     if (query.published !== undefined) where.published = query.published;
     else where.published = true;
     if (query.q) {
@@ -75,30 +120,80 @@ export class ProductsService {
         },
       };
     }
-    const orderBy = this.parseSort(query.sort);
-    const [items, total] = await this.prisma.$transaction([
-      this.prisma.product.findMany({
-        where,
-        orderBy,
-        skip: (page - 1) * limit,
-        take: limit,
-        include: {
-          category: true,
-          images: { where: { deletedAt: null }, orderBy: { position: 'asc' } },
-          variants: { where: { deletedAt: null } },
-        },
-      }),
-      this.prisma.product.count({ where }),
-    ]);
+    const orderByRaw = this.parseSort(query.sort);
+    const hasPrice = orderByRaw.some((o: Record<string, unknown>) => '__price__' in o);
+    const prismaOrderBy = orderByRaw.flatMap((o: Record<string, unknown>) =>
+      '__price__' in o
+        ? [
+            { variants: { _count: 'desc' } },
+            { variants: { _min: { price: o['__price__'] as 'asc' | 'desc' } } },
+          ]
+        : [o],
+    );
 
-    const mapped = items.map((p) => {
-      const prices = p.variants.map((v) => v.price);
-      const minPrice = prices.length ? Math.min(...prices) : undefined;
-      const maxPrice = prices.length ? Math.max(...prices) : undefined;
-      return { ...p, minPrice, maxPrice };
-    });
+    const include = {
+      category: true,
+      images: { where: { deletedAt: null }, orderBy: { position: 'asc' } },
+      variants: { where: { deletedAt: null } },
+    } as const;
 
-    return { items: mapped, total, page, limit };
+    try {
+      const [items, total] = await this.prisma.$transaction([
+        this.prisma.product.findMany({
+          where,
+          orderBy: prismaOrderBy,
+          skip: (page - 1) * limit,
+          take: limit,
+          include,
+        }),
+        this.prisma.product.count({ where }),
+      ]);
+
+      const mapped = items.map((p: ProductItem & { variants: WithPrice[] }) => {
+        const minPriceVal = minPriceFrom(p.variants);
+        const maxValues = p.variants
+          .map((v: WithPrice) => v.price ?? null)
+          .filter((v: PriceVal): v is number => v != null);
+        const max = maxValues.length ? Math.max(...maxValues) : null;
+        return { ...p, minPrice: minPriceVal ?? undefined, maxPrice: max ?? undefined };
+      });
+
+      return { items: mapped, total, page, limit };
+    } catch (err) {
+      if (!hasPrice) throw err;
+
+      const prismaOrderByNoPrice = orderByRaw.filter(
+        (o: Record<string, unknown>) => !('__price__' in o),
+      );
+      const [items, total] = await this.prisma.$transaction([
+        this.prisma.product.findMany({ where, orderBy: prismaOrderByNoPrice, include }),
+        this.prisma.product.count({ where }),
+      ]);
+
+      const mapped = items.map((p: ProductItem & { variants: WithPrice[] }) => {
+        const minPriceVal = minPriceFrom(p.variants);
+        const maxValues = p.variants
+          .map((v: WithPrice) => v.price ?? null)
+          .filter((v: PriceVal): v is number => v != null);
+        const max = maxValues.length ? Math.max(...maxValues) : null;
+        return { ...p, minPrice: minPriceVal ?? undefined, maxPrice: max ?? undefined };
+      });
+
+      const dir =
+        orderByRaw.find((o: Record<string, unknown>) => '__price__' in o)?.['__price__'] ===
+        'desc'
+          ? 'desc'
+          : 'asc';
+      mapped.sort((a: WithMinPrice, b: WithMinPrice) =>
+        dir === 'asc'
+          ? cmpNumberNullsLast(a.minPrice, b.minPrice)
+          : -cmpNumberNullsLast(a.minPrice, b.minPrice),
+      );
+
+      const start = (page - 1) * limit;
+      const paged = mapped.slice(start, start + limit);
+      return { items: paged, total, page, limit };
+    }
   }
 
   async detail(slug: string) {
@@ -112,10 +207,16 @@ export class ProductsService {
     });
     if (!product)
       throw new HttpException({ code: 'NOT_FOUND', message: 'Product not found' }, HttpStatus.NOT_FOUND);
-    const prices = product.variants.map((v) => v.price);
-    const minPrice = prices.length ? Math.min(...prices) : undefined;
-    const maxPrice = prices.length ? Math.max(...prices) : undefined;
-    return { ...product, minPrice, maxPrice };
+    const minPriceVal = minPriceFrom(product.variants as WithPrice[]);
+    const maxValues = product.variants
+      .map((v: WithPrice) => v.price ?? null)
+      .filter((v: PriceVal): v is number => v != null);
+    const maxPriceVal = maxValues.length ? Math.max(...maxValues) : null;
+    return {
+      ...product,
+      minPrice: minPriceVal ?? undefined,
+      maxPrice: maxPriceVal ?? undefined,
+    };
   }
 
   async create(dto: CreateProductDto) {
