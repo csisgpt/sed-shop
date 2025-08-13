@@ -1,11 +1,31 @@
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
-import { Prisma, Product } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../common/prisma.service.js';
 import {
   CreateProductDto,
   ProductListQueryDto,
   UpdateProductDto,
 } from './products.dto.js';
+
+// --- helper types for strict callbacks ---
+type PriceVal = number | null | undefined;
+type WithMinPrice = { minPrice?: PriceVal };
+type WithPrice = { price?: PriceVal };
+
+// stable comparator: nulls last
+const cmpNumberNullsLast = (a: PriceVal, b: PriceVal) => {
+  if (a == null && b == null) return 0;
+  if (a == null) return 1;
+  if (b == null) return -1;
+  return (a as number) - (b as number);
+};
+
+const minPrice = (variants: WithPrice[]): number | null => {
+  const values = variants
+    .map((v: WithPrice) => v.price ?? null)
+    .filter((v: number | null): v is number => v != null);
+  return values.length ? Math.min(...values) : null;
+};
 
 function slugify(str: string): string {
   return str
@@ -33,11 +53,11 @@ export class ProductsService {
   }
 
   private parseSort(sort?: string) {
-    const orderBy: any[] = [];
+    const orderBy: Array<Record<string, unknown>> = [];
     if (!sort) return [{ createdAt: 'desc' }];
     for (const part of sort
       .split(',')
-      .map((s) => s.trim())
+      .map((s: string) => s.trim())
       .filter(Boolean)) {
       const [field, dirRaw] = part.split(':');
       const dir = dirRaw === 'desc' ? 'desc' : 'asc';
@@ -82,12 +102,12 @@ export class ProductsService {
       };
     }
     const orderByRaw = this.parseSort(query.sort);
-    const hasPrice = orderByRaw.some((o) => '__price__' in o);
-    const prismaOrderBy = orderByRaw.flatMap((o) =>
+    const hasPrice = orderByRaw.some((o: Record<string, unknown>) => '__price__' in o);
+    const prismaOrderBy = orderByRaw.flatMap((o: Record<string, unknown>) =>
       '__price__' in o
         ? [
             { variants: { _count: 'desc' } },
-            { variants: { _min: { price: o['__price__'] } } },
+            { variants: { _min: { price: o['__price__'] as 'asc' | 'desc' } } },
           ]
         : [o],
     );
@@ -110,37 +130,46 @@ export class ProductsService {
         this.prisma.product.count({ where }),
       ]);
 
-      const mapped = items.map((p) => {
-        const prices = p.variants.map((v) => v.price);
-        const minPrice = prices.length ? Math.min(...prices) : undefined;
-        const maxPrice = prices.length ? Math.max(...prices) : undefined;
-        return { ...p, minPrice, maxPrice };
+      const mapped = items.map((p: Prisma.Product & { variants: WithPrice[] }) => {
+        const minPriceVal = minPrice(p.variants);
+        const maxValues = p.variants
+          .map((v: WithPrice) => v.price ?? null)
+          .filter((v: PriceVal): v is number => v != null);
+        const max = maxValues.length ? Math.max(...maxValues) : null;
+        return { ...p, minPrice: minPriceVal ?? undefined, maxPrice: max ?? undefined };
       });
 
       return { items: mapped, total, page, limit };
     } catch (err) {
       if (!hasPrice) throw err;
 
-      const prismaOrderByNoPrice = orderByRaw.filter((o) => !('__price__' in o));
+      const prismaOrderByNoPrice = orderByRaw.filter(
+        (o: Record<string, unknown>) => !('__price__' in o),
+      );
       const [items, total] = await this.prisma.$transaction([
         this.prisma.product.findMany({ where, orderBy: prismaOrderByNoPrice, include }),
         this.prisma.product.count({ where }),
       ]);
 
-      const mapped = items.map((p) => {
-        const prices = p.variants.map((v) => v.price);
-        const minPrice = prices.length ? Math.min(...prices) : undefined;
-        const maxPrice = prices.length ? Math.max(...prices) : undefined;
-        return { ...p, minPrice, maxPrice };
+      const mapped = items.map((p: Prisma.Product & { variants: WithPrice[] }) => {
+        const minPriceVal = minPrice(p.variants);
+        const maxValues = p.variants
+          .map((v: WithPrice) => v.price ?? null)
+          .filter((v: PriceVal): v is number => v != null);
+        const max = maxValues.length ? Math.max(...maxValues) : null;
+        return { ...p, minPrice: minPriceVal ?? undefined, maxPrice: max ?? undefined };
       });
 
-      const dir = orderByRaw.find((o) => '__price__' in o)?.['__price__'] === 'desc' ? 'desc' : 'asc';
-      mapped.sort((a, b) => {
-        const aPrice = a.minPrice ?? (dir === 'asc' ? Infinity : -1);
-        const bPrice = b.minPrice ?? (dir === 'asc' ? Infinity : -1);
-        if (aPrice === bPrice) return 0;
-        return dir === 'asc' ? aPrice - bPrice : bPrice - aPrice;
-      });
+      const dir =
+        orderByRaw.find((o: Record<string, unknown>) => '__price__' in o)?.['__price__'] ===
+        'desc'
+          ? 'desc'
+          : 'asc';
+      mapped.sort((a: WithMinPrice, b: WithMinPrice) =>
+        dir === 'asc'
+          ? cmpNumberNullsLast(a.minPrice, b.minPrice)
+          : -cmpNumberNullsLast(a.minPrice, b.minPrice),
+      );
 
       const start = (page - 1) * limit;
       const paged = mapped.slice(start, start + limit);
@@ -159,10 +188,16 @@ export class ProductsService {
     });
     if (!product)
       throw new HttpException({ code: 'NOT_FOUND', message: 'Product not found' }, HttpStatus.NOT_FOUND);
-    const prices = product.variants.map((v) => v.price);
-    const minPrice = prices.length ? Math.min(...prices) : undefined;
-    const maxPrice = prices.length ? Math.max(...prices) : undefined;
-    return { ...product, minPrice, maxPrice };
+    const minPriceVal = minPrice(product.variants as WithPrice[]);
+    const maxValues = product.variants
+      .map((v: WithPrice) => v.price ?? null)
+      .filter((v: PriceVal): v is number => v != null);
+    const maxPriceVal = maxValues.length ? Math.max(...maxValues) : null;
+    return {
+      ...product,
+      minPrice: minPriceVal ?? undefined,
+      maxPrice: maxPriceVal ?? undefined,
+    };
   }
 
   async create(dto: CreateProductDto) {
